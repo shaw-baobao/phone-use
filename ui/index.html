@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phone Use</title><style>/*__STYLE__*/</style></head>
+<body><main>
+  <header><div><strong>Phone Use</strong><span class="subtitle">Your phone, within reach.</span></div><span id="status" role="status">Disconnected</span></header>
+  <section class="connection"><label for="devices">Device</label><select id="devices"><option value="">Choose a device</option></select><button id="connect">Connect</button><button id="refresh" title="Refresh device list">↻</button></section>
+  <section class="workspace"><div id="stage"><img id="screen" alt="Live device screen. Drag to swipe; hold to long-press." draggable="false" hidden tabindex="0"><p id="empty">Connect a device to see its screen.</p><span id="cursor" hidden></span></div>
+  <aside><div class="control"><span class="label">Control</span><div class="segmented"><button id="manual" aria-pressed="true">You</button><button id="ai" aria-pressed="false">AI</button></div><p id="hint">Click, drag or hold on the live screen.</p></div>
+    <button id="home" disabled>⌂ <span>Home</span></button><button id="pause" disabled>Pause preview</button>
+    <label for="text">Type into focused field</label><textarea id="text" rows="3" placeholder="Text to send…" maxlength="4000" disabled></textarea><button id="send" disabled>Send text</button>
+    <div class="bottom"><button id="disconnect" disabled>Disconnect</button><button id="stop" disabled>Stop automation</button><small>Stopping automation ends the iOS agent. Disconnecting only stops this preview.</small></div>
+  </aside></section><footer><span id="message" role="status">Powered by MobileCLI</span><span id="dimensions"></span></footer>
+</main><script type="module">/*__SCRIPT__*/</script></body></html>

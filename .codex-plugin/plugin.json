@@ -1,0 +1,15 @@
+{
+  "name": "phone-use",
+  "version": "0.1.0",
+  "description": "Interactive phone screen and shared human/AI control powered by MobileCLI.",
+  "author": { "name": "shaw-baobao" },
+  "license": "MIT",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Phone Use",
+    "shortDescription": "See and control your phone in Codex",
+    "developerName": "shaw-baobao",
+    "category": "Productivity",
+    "defaultPrompt": ["Open Phone Use and show my connected phone."]
+  }
+}

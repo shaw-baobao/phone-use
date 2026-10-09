@@ -1,0 +1,5 @@
+{
+  "name": "phone-use-local",
+  "interface": { "displayName": "Phone Use Local" },
+  "plugins": [{ "name": "phone-use", "source": { "source": "local", "path": "./dist/phone-use" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" }]
+}

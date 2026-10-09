@@ -1,0 +1,13 @@
+node_modules/
+work/
+.DS_Store
+.env
+.env.*
+*.mobileprovision
+*.p12
+*.pem
+*.log
+*.png
+*.jpg
+
+dist/phone-use/
