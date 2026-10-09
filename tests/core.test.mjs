@@ -59,13 +59,13 @@ test('stopping during device discovery cancels connection without controlling a 
 });
 test('Home remains usable without a video frame, while coordinate input still requires one', async t => {
   const f=fixture(t); await f.c.connect('test'); const auth={session:f.c.session};
-  const result = await f.c.action({action:'home',...auth}); assert.equal(result.verified,true); assert.deepEqual(f.calls.at(-2),['io','keys','--device','test','cmd+h']);
+  const result = await f.c.action({action:'home',...auth}); assert.equal(result.verified,true); assert.deepEqual(f.calls.at(-2),['io','swipe','--device','test','210,910,210,201','--duration','200']);
   await assert.rejects(f.c.action({action:'tap',point:{x:0.5,y:0.5},...auth}),/preview is stale/);
   await assert.rejects(f.c.action({action:'home',session:'different-device'}));
 });
 test('Recent apps uses an iOS slow bottom-edge swipe and an Android hardware key',async t=>{
   const f=fixture(t); await f.c.connect('test'); await f.c.action({action:'recent',session:f.c.session});
-  assert.deepEqual(f.calls.at(-1),['io','swipe','--device','test','210,910,210,520','--duration','1200']);
+  assert.deepEqual(f.calls.at(-1),['io','swipe','--device','test','210,910,210,730','--duration','1500']);
   f.c.device.platform='android';await f.c.action({action:'recent',session:f.c.session});assert.deepEqual(f.calls.at(-1),['io','button','--device','test','APP_SWITCH']);
 });
 test('screenshot captures fresh PNG bytes in the shared queue and respects pause',async t=>{

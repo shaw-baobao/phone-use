@@ -139,10 +139,14 @@ export class Controller {
         case 'longpress': command = ['io', 'longpress', ...target, point(args.point), '--duration', String(Math.min(2000, Math.max(500, args.duration || 500)))]; break;
         case 'swipe': command = ['io', 'swipe', ...target, `${point(args.from)},${point(args.to)}`, '--duration', String(Math.min(1500, Math.max(100, args.duration || 300)))]; break;
         case 'text': if (typeof args.text !== 'string' || !args.text.length || args.text.length > 4000) throw new Error('Text must contain 1–4000 characters.'); command = ['io', 'text', ...target, '--', args.text]; break;
-        case 'home': command = this.device.platform === 'ios' && this.device.type !== 'simulator' ? ['io', 'keys', ...target, 'cmd+h'] : ['io', 'button', ...target, 'HOME']; break;
+        case 'home': {
+          if (this.device.platform === 'ios' && this.device.type !== 'simulator') { const size = this.viewport(); const x = Math.round(size.width / 2); command = ['io', 'swipe', ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.22)}`, '--duration', '200']; }
+          else command = ['io', 'button', ...target, 'HOME'];
+          break;
+        }
         case 'recent': {
           if (this.device.platform === 'android') command = ['io', 'button', ...target, 'APP_SWITCH'];
-          else { const size = this.viewport(); const x = Math.round(size.width / 2); command = ['io', 'swipe', ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.57)}`, '--duration', '1200']; }
+          else { const size = this.viewport(); const x = Math.round(size.width / 2); command = ['io', 'swipe', ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.8)}`, '--duration', '1500']; }
           break;
         }
         case 'launch': if (!/^[a-zA-Z0-9_.-]{3,200}$/.test(args.bundleId || '')) throw new Error('Invalid application ID'); command = ['apps', 'launch', args.bundleId, ...target]; break;
