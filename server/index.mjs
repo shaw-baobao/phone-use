@@ -6,9 +6,10 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Controller } from './core.mjs';
+import { version, resourceUri } from '../shared/version.mjs';
 
 const controller = new Controller();
-const uri = 'ui://phone-use/panel-0.1.0.html';
+const uri = resourceUri;
 const html = () => readFile(new URL('../assets/panel.html', import.meta.url), 'utf8');
 const point = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict();
 const actionShape = { action: z.enum(['tap', 'longpress', 'swipe', 'text', 'home', 'launch']), point: point.optional(), from: point.optional(), to: point.optional(), duration: z.number().int().min(100).max(2000).optional(), text: z.string().min(1).max(4000).optional(), bundleId: z.string().max(200).optional(), session: z.string().max(100).optional(), frameSeq: z.number().int().nonnegative().optional() };
@@ -70,7 +71,7 @@ if (process.argv.includes('--preview')) {
   });
   server.listen(Number(process.env.PHONE_USE_PORT || 4318), '127.0.0.1', () => console.error(`http://127.0.0.1:${server.address().port}/#${token}`));
 } else {
-  const server = new McpServer({ name: 'phone-use', version: '0.1.0' });
+  const server = new McpServer({ name: 'phone-use', version });
   registerAppResource(server, 'Phone Use', uri, { _meta: uiMeta }, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: await html(), _meta: uiMeta }] }));
   for (const [name, handler] of Object.entries(handlers)) {
     const _meta = name === 'phone_open' ? { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'thread' }] } } : appOnly.has(name) ? { ui: { visibility: ['app'] } } : {};

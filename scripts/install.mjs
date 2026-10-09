@@ -1,14 +1,12 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { mkdir, copyFile, access, rm } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
+import { stagePlugin } from './stage.mjs';
 import { join } from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
 await access(join(root, 'dist/server.mjs'));
 const stage = join(root, 'dist/phone-use');
-await rm(stage, { recursive: true, force: true });
-for (const file of ['.codex-plugin/plugin.json', '.mcp.json', 'dist/server.mjs', 'assets/panel.html', 'assets/THIRD_PARTY_NOTICES.txt', 'README.md', 'LICENSE']) {
-  const target = join(stage, file); await mkdir(join(target, '..'), { recursive: true }); await copyFile(join(root, file), target);
-}
+await stagePlugin(root, stage);
 function codex(args, capture = false) {
   const result = spawnSync('codex', args, { encoding: 'utf8', stdio: capture ? ['ignore','pipe','inherit'] : 'inherit', shell: false });
   if (result.error) throw result.error;

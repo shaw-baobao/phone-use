@@ -2,7 +2,7 @@
 
 An open-source Codex MCP App for viewing and directly controlling a connected phone, powered by [MobileCLI](https://github.com/mobile-next/mobilecli).
 
-**Experimental v0.1.0.** The first target is a real iPhone connected to macOS. Android uses MobileCLI's same interface, but has not been verified on hardware for this project.
+**Experimental.** Real iPhones and booted iOS simulators on macOS use the same panel and controls. Android uses MobileCLI's same interface, but has not been verified on hardware for this project.
 
 ## What it does
 
@@ -29,6 +29,28 @@ mobilecli agent status --device YOUR_DEVICE_ID
 ```
 
 Use a profile that authorizes the DeviceKit bundle ID and your selected device. Never commit provisioning profiles or signing keys.
+
+## iOS simulators
+
+Start an available simulator using Xcode's Simulator app or `xcrun simctl boot SIMULATOR_UDID`, then:
+
+```sh
+mobilecli devices --platform ios
+mobilecli agent install --device SIMULATOR_UDID
+```
+
+Select the device labeled **ios simulator** in Phone Use and connect. A simulator needs the DeviceKit simulator agent, but no provisioning profile or physical USB pairing. Discovery currently shows booted simulators; Phone Use does not boot a shut-down simulator for you. Stop automation terminates the simulator runner and leaves the simulator booted.
+
+## Install a packaged release
+
+Download `phone-use-VERSION.zip` or `.tar.gz` from [GitHub Releases](https://github.com/shaw-baobao/phone-use/releases). Verify it against the accompanying `SHA256SUMS`, extract it, and run:
+
+```sh
+cd phone-use-VERSION
+node scripts/install.mjs
+```
+
+The package already contains the bundled server and panel. No `npm ci` or build step is needed. Node.js 22+, MobileCLI, Codex, and the platform prerequisites are still required; these tools and the DeviceKit agent are not included in the archive. For a local browser preview, run `node dist/server.mjs --preview`.
 
 ## Install in Codex
 
@@ -107,3 +129,23 @@ The repository includes self-contained generated `assets/panel.html` and `dist/s
 Device lock, trust, signing, or agent failure requires user intervention. This release has no audio, multi-touch, pinch gesture, hardware keyboard passthrough, remote access, or device-agent installation wizard. AI observation uses MobileCLI's UI tree plus a cached fresh frame; a paused preview blocks observation. “Stop automation” currently terminates iOS's selected runner and reports whether a runner was actually stopped; it does not uninstall the agent or stop MobileCLI's shared daemon.
 
 MIT license for Phone Use. Third-party packages retain their own licenses; see [bundled notices](assets/THIRD_PARTY_NOTICES.txt). The design uses the MCP Apps SDK and MobileCLI; it is an independent project and does not fork iPhone-use code.
+
+## Versioned releases
+
+`package.json` is the runtime version source. Keep `.codex-plugin/plugin.json` and the root entries of `package-lock.json` in sync. The build checks plugin/package equality; the panel, MCP server, and resource URI all use that version.
+
+```sh
+# After updating versions and release notes:
+npm ci
+npm run build
+npm test
+npm run package
+git add .
+git commit -m "Release vX.Y.Z"
+git tag -a vX.Y.Z -m "Phone Use vX.Y.Z"
+git push origin main vX.Y.Z
+```
+
+[Release workflow](.github/workflows/release.yml) runs on `v*` tags and also accepts an existing tag via Actions → Release → Run workflow. It checks that the tag matches the source version, builds and tests, verifies generated files, creates ZIP/tar.gz packages with SHA-256 checksums, then uploads and publishes a GitHub Release. Archives contain only an explicit allowlist of runtime/plugin files; development dependencies, device screenshots, signing profiles, and local state are excluded.
+
+Only the publishing job has `contents: write`. Pre-release tags (for example `v0.2.0-beta.1`) are marked as prereleases. Failed draft uploads can be retried; an already published release is never silently overwritten. These archives are platform-independent JavaScript packages, not standalone native executables.

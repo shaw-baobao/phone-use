@@ -11,3 +11,4 @@ work/
 *.jpg
 
 dist/phone-use/
+release/

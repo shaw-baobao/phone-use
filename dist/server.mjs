@@ -921,10 +921,10 @@ var init_regexes = __esm({
     duration = /^P(?:(\d+W)|(?!.*W)(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+([.,]\d+)?S)?)?)$/;
     extendedDuration = /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/;
     guid = /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
-    uuid = (version2) => {
-      if (!version2)
+    uuid = (version3) => {
+      if (!version3)
         return /^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000)$/;
-      return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version2}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
+      return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version3}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
     };
     uuid4 = /* @__PURE__ */ uuid(4);
     uuid6 = /* @__PURE__ */ uuid(6);
@@ -19791,11 +19791,11 @@ function datetimeRegex(args) {
   regex = `${regex}(${opts.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
-function isValidIP(ip, version2) {
-  if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
+function isValidIP(ip, version3) {
+  if ((version3 === "v4" || !version3) && ipv4Regex.test(ip)) {
     return true;
   }
-  if ((version2 === "v6" || !version2) && ipv6Regex.test(ip)) {
+  if ((version3 === "v6" || !version3) && ipv6Regex.test(ip)) {
     return true;
   }
   return false;
@@ -19822,11 +19822,11 @@ function isValidJWT(jwt2, alg) {
     return false;
   }
 }
-function isValidCidr(ip, version2) {
-  if ((version2 === "v4" || !version2) && ipv4CidrRegex.test(ip)) {
+function isValidCidr(ip, version3) {
+  if ((version3 === "v4" || !version3) && ipv4CidrRegex.test(ip)) {
     return true;
   }
-  if ((version2 === "v6" || !version2) && ipv6CidrRegex.test(ip)) {
+  if ((version3 === "v6" || !version3) && ipv6CidrRegex.test(ip)) {
     return true;
   }
   return false;
@@ -29027,9 +29027,43 @@ var Controller = class {
   }
 };
 
+// package.json
+var package_default = {
+  name: "phone-use",
+  version: "0.1.1",
+  description: "Interactive mobile screen and shared human/AI control in Codex, powered by MobileCLI",
+  type: "module",
+  private: true,
+  license: "MIT",
+  engines: {
+    node: ">=22"
+  },
+  scripts: {
+    build: "node scripts/build.mjs",
+    test: "node --test tests/*.test.mjs",
+    start: "node dist/server.mjs",
+    preview: "node dist/server.mjs --preview",
+    "install:codex": "node scripts/install.mjs",
+    package: "node scripts/package.mjs",
+    "check:version": "node scripts/check-version.mjs"
+  },
+  dependencies: {
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    zod: "3.25.76"
+  },
+  devDependencies: {
+    esbuild: "0.25.11"
+  }
+};
+
+// shared/version.mjs
+var version2 = package_default.version;
+var resourceUri = `ui://phone-use/panel-${version2}.html`;
+
 // server/index.mjs
 var controller = new Controller();
-var uri = "ui://phone-use/panel-0.1.0.html";
+var uri = resourceUri;
 var html = () => readFile(new URL("../assets/panel.html", import.meta.url), "utf8");
 var point = external_exports.object({ x: external_exports.number().min(0).max(1), y: external_exports.number().min(0).max(1) }).strict();
 var actionShape = { action: external_exports.enum(["tap", "longpress", "swipe", "text", "home", "launch"]), point: point.optional(), from: point.optional(), to: point.optional(), duration: external_exports.number().int().min(100).max(2e3).optional(), text: external_exports.string().min(1).max(4e3).optional(), bundleId: external_exports.string().max(200).optional(), session: external_exports.string().max(100).optional(), frameSeq: external_exports.number().int().nonnegative().optional() };
@@ -29117,7 +29151,7 @@ if (process.argv.includes("--preview")) {
   });
   server.listen(Number(process.env.PHONE_USE_PORT || 4318), "127.0.0.1", () => console.error(`http://127.0.0.1:${server.address().port}/#${token}`));
 } else {
-  const server = new McpServer({ name: "phone-use", version: "0.1.0" });
+  const server = new McpServer({ name: "phone-use", version: version2 });
   N3(server, "Phone Use", uri, { _meta: uiMeta }, async () => ({ contents: [{ uri, mimeType: p, text: await html(), _meta: uiMeta }] }));
   for (const [name, handler] of Object.entries(handlers)) {
     const _meta = name === "phone_open" ? { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } } : appOnly.has(name) ? { ui: { visibility: ["app"] } } : {};

@@ -1,0 +1,79 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag, e.g. v0.1.1'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check version against tag
+        run: node scripts/check-version.mjs "$RELEASE_TAG"
+      - run: npm run build
+      - run: npm test
+      - run: git diff --exit-code -- assets/panel.html assets/THIRD_PARTY_NOTICES.txt dist/server.mjs
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phone-use-${{ env.RELEASE_TAG }}
+          path: |
+            release/*.zip
+            release/*.tar.gz
+            release/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: phone-use-${{ env.RELEASE_TAG }}
+          path: release
+      - name: Create draft and upload verified packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum --check SHA256SUMS
+          if gh release view "$RELEASE_TAG" --json isDraft >/dev/null 2>&1; then
+            draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+            if [ "$draft" != true ]; then
+              echo 'Release is already published; refusing to replace its assets.' >&2
+              exit 1
+            fi
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes --title "Phone Use $RELEASE_TAG"
+          fi
+          gh release upload "$RELEASE_TAG" ./*.zip ./*.tar.gz SHA256SUMS --clobber
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$RELEASE_TAG" --draft=false
+          fi

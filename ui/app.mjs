@@ -1,5 +1,6 @@
 import { App } from '@modelcontextprotocol/ext-apps';
 import { imagePoint } from './geometry.mjs';
+import { version } from '../shared/version.mjs';
 const el = id => document.getElementById(id);
 const screen = el('screen');
 let app, state = {}, seq = -1, running = false, timer, acting = false, gesture, disposed = false;
@@ -28,6 +29,7 @@ function sync() {
   screen.style.cursor = manual && live && !acting ? 'crosshair' : 'default';
 }
 function consume(data) {
+  const previousError = state.error, previousLive = state.live;
   if ((data.mode && data.mode !== state.mode) || (data.paused !== undefined && data.paused !== state.paused)) gesture = null;
   if (data.session && data.session !== state.session) { gesture = null; seq = -1; screen.removeAttribute('src'); screen.hidden = true; }
   state = { ...state, ...data };
@@ -39,12 +41,13 @@ function consume(data) {
   if (state.paused || !state.device) { screen.removeAttribute('src'); screen.hidden = true; el('empty').hidden = false; el('empty').textContent = state.paused ? 'Preview paused. Resume when you are ready.' : 'Connect a device to see its screen.'; seq = -1; }
   if (state.viewport) el('dimensions').textContent = `${state.viewport.width} × ${state.viewport.height}`;
   if (data.error) message(data.error);
+  else if (data.frame && data.live && (!previousLive || previousError)) message('Live screen connected');
   sync();
 }
 async function devices() {
   const data = await call('phone_devices'); const select = el('devices');
   const selected = select.value; select.replaceChildren(new Option('Choose a device', ''));
-  for (const device of data.devices) if (device.state === 'online') select.add(new Option(`${device.name} · ${device.platform}`, device.id));
+  for (const device of data.devices) if (device.state === 'online') select.add(new Option(`${device.name} · ${device.platform} ${device.type}`, device.id));
   select.value = selected || state.device?.id || '';
 }
 async function poll() {
@@ -92,7 +95,7 @@ window.addEventListener('pageshow', () => { void poll(); });
 async function start() {
   try {
     if (!local) {
-      app = new App({ name: 'Phone Use', version: '0.1.0' }, { availableDisplayModes: ['fullscreen'] }, { autoResize: false });
+      app = new App({ name: 'Phone Use', version }, { availableDisplayModes: ['fullscreen'] }, { autoResize: false });
       app.ontoolresult = event => { if (event.structuredContent) { consume(event.structuredContent); void poll(); } };
       app.onteardown = async () => { disposed = true; clearTimeout(timer); };
       await app.connect();

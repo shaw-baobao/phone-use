@@ -1,3 +1,5 @@
+import { checkVersion } from './check-version.mjs';
+await checkVersion(new URL('../', import.meta.url));
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 const code = await build({ entryPoints: ['ui/app.mjs'], bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true, write: false, pure: ['console.debug'], legalComments: 'inline' });
