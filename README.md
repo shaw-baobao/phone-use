@@ -1,5 +1,7 @@
 # Phone Use
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 An open-source Codex MCP App for viewing and directly controlling a connected phone, powered by [MobileCLI](https://github.com/mobile-next/mobilecli).
 
 **Experimental.** Real iPhones and booted iOS simulators on macOS use the same panel and controls. Android uses MobileCLI's same interface, but has not been verified on hardware for this project.
@@ -67,7 +69,7 @@ npm run install:codex
 
 The installer stages only the bundled server, panel, plugin metadata, README, and license into Codex's plugin cache. It registers the `phone-use-local` marketplace, installs `phone-use`, and registers the `phone_use` MCP server using the current Node executable. It does not alter other MCP servers or phone apps.
 
-Reconnect your Codex chat (or restart Codex), then ask **“打开 Phone Use 实时屏幕”**. Choose the exact device, click **Connect**, and keep the phone unlocked. Manual control is enabled first. Select **AI** to allow the assistant to use `phone_action`; select **You** to take control back.
+Reconnect your Codex chat (or restart Codex), then ask **“Open the Phone Use live screen”**. Choose the exact device, click **Connect**, and keep the phone unlocked. Manual control is enabled first. Select **AI** to allow the assistant to use `phone_action`; select **You** to take control back.
 
 After pulling updates, run `npm ci`, `npm run build`, and `npm run install:codex` again, then reconnect Codex. To uninstall:
 
