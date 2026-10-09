@@ -1,6 +1,6 @@
 {
   "name": "phone-use",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Interactive mobile screen and shared human/AI control in Codex, powered by MobileCLI",
   "type": "module",
   "private": true,

@@ -130,7 +130,8 @@ export class Controller {
       if (epoch !== this.epoch) throw new Error('Control changed while this action was queued. Nothing was sent.');
       if (!this.device || this.paused || this.mode !== actor) throw new Error(`Control belongs to ${this.mode}; preview may be paused. Nothing was sent.`);
       const displayed = this.frames.get(args.frameSeq);
-      if (actor === 'manual' && (!displayed || this.now() - displayed.at > 2500 || args.session !== this.session || !this.frame || this.now() - this.frame.at > 2500 )) throw new Error('The preview is stale. Wait for a live frame before controlling the device.');
+      if (actor === 'manual' && args.session !== this.session) throw new Error('Control session changed. Reconnect the selected device. Nothing was sent.');
+      if (actor === 'manual' && !['home', 'recent', 'launch'].includes(args.action) && (!displayed || this.now() - displayed.at > 2500 || args.session !== this.session || !this.frame || this.now() - this.frame.at > 2500 )) throw new Error('The preview is stale. Wait for a live frame before controlling the device.');
       const target = ['--device', this.device.id]; let command;
       const point = value => mapPoint(value, this.viewport()).join(',');
       switch (args.action) {
@@ -138,11 +139,36 @@ export class Controller {
         case 'longpress': command = ['io', 'longpress', ...target, point(args.point), '--duration', String(Math.min(2000, Math.max(500, args.duration || 500)))]; break;
         case 'swipe': command = ['io', 'swipe', ...target, `${point(args.from)},${point(args.to)}`, '--duration', String(Math.min(1500, Math.max(100, args.duration || 300)))]; break;
         case 'text': if (typeof args.text !== 'string' || !args.text.length || args.text.length > 4000) throw new Error('Text must contain 1–4000 characters.'); command = ['io', 'text', ...target, '--', args.text]; break;
-        case 'home': command = ['io', 'button', ...target, 'HOME']; break;
+        case 'home': command = this.device.platform === 'ios' && this.device.type !== 'simulator' ? ['io', 'keys', ...target, 'cmd+h'] : ['io', 'button', ...target, 'HOME']; break;
+        case 'recent': {
+          if (this.device.platform === 'android') command = ['io', 'button', ...target, 'APP_SWITCH'];
+          else { const size = this.viewport(); const x = Math.round(size.width / 2); command = ['io', 'swipe', ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.57)}`, '--duration', '1200']; }
+          break;
+        }
         case 'launch': if (!/^[a-zA-Z0-9_.-]{3,200}$/.test(args.bundleId || '')) throw new Error('Invalid application ID'); command = ['apps', 'launch', args.bundleId, ...target]; break;
         default: throw new Error('Unsupported action');
       }
-      await this.run(command); return { ok: true, action: args.action, verified: false };
+      await this.run(command);
+      if (args.action === 'home' && this.device.platform === 'ios') {
+        let foreground;
+        for (let attempt = 0; attempt < 6; attempt++) {
+          if (attempt) await new Promise(resolve => setTimeout(resolve, 200));
+          foreground = await this.run(['apps', 'foreground', ...target]);
+          if (foreground.packageName === 'com.apple.springboard') break;
+        }
+        if (foreground.packageName !== 'com.apple.springboard') throw new Error('Home input was sent, but the phone did not return to its Home screen. Check the device and its agent before trying again.');
+        return { ok: true, action: 'home', verified: true, verification: 'SpringBoard is in the foreground' };
+      }
+      return { ok: true, action: args.action, verified: false };
+    });
+  }
+  async capture() {
+    const epoch = this.epoch;
+    return this.exclusive(async () => {
+      if (epoch !== this.epoch || !this.device || this.paused) throw new Error('Connect and resume the selected device before taking a screenshot.');
+      const bytes = await this.run(['screenshot', '--device', this.device.id, '--format', 'png', '--output', '-'], { raw: true });
+      if (!Buffer.isBuffer(bytes) || !bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error('MobileCLI did not return a PNG screenshot.');
+      return { capture: { mimeType: 'image/png', data: bytes.toString('base64'), filename: `phone-use-${new Date(this.now()).toISOString().replace(/[:.]/g, '-')}.png` } };
     });
   }
   async observe() {

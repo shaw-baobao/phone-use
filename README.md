@@ -7,9 +7,11 @@ An open-source Codex MCP App for viewing and directly controlling a connected ph
 ## What it does
 
 - Live MJPEG screen preview inside a Codex panel, with no simulated notch or phone bezel.
-- Click to tap, drag to swipe, hold to long press. Home and explicit text input controls.
+- Click to tap, drag to swipe, hold to long press. A bottom control bar provides **Home / Screenshot / Recent apps**, with explicit text input in the side panel.
+- iOS real-device Home uses MobileCLI's `cmd+h` shortcut (simulators use the native Home button) and checks that SpringBoard is in the foreground; Android uses the Home hardware key. Home and Recent apps remain usable during video loss; coordinate gestures still require a fresh displayed frame. An already visible Home screen may not change when Home is pressed again. Screenshot captures a fresh full-resolution PNG through MobileCLI and requests a host download (or a browser download in local preview).
+- Recent apps uses Android's `APP_SWITCH` key or a slow iOS swipe from the bottom edge; iOS acceptance should be checked on the target device.
 - Explicit **You / AI** control ownership, with one shared command queue. Switching ownership cancels queued actions.
-- **Pause preview** stops screen capture; **Disconnect** releases this panel's connection; **Stop automation** also terminates the selected iOS DeviceKit runner. Pausing or disconnecting alone can leave iOS's “Automation Running” indicator visible.
+- **Pause preview** stops screen capture; **Disconnect** releases this panel's connection; **Stop automation** also terminates the selected iOS DeviceKit runner. Paused capture blocks device input and screenshot capture. Pausing or disconnecting alone can leave iOS's “Automation Running” indicator visible.
 - MCP tools for device discovery, UI-tree observation, optional fresh screen images, and AI actions. Manual controls call app-only tools directly, without a model round trip.
 
 Frames are requested at up to 10 fps, scaled to 50%. The app polls the latest frame about every 120 ms. This is interactive screen mirroring, not a guaranteed-latency video transport. Hidden or closed panels stop leasing capture; the server stops its stream within roughly 6 seconds. It does not automatically terminate a device agent when the panel closes.

@@ -1,5 +1,6 @@
 import { App } from '@modelcontextprotocol/ext-apps';
 import { imagePoint } from './geometry.mjs';
+import { inputError } from './controls.mjs';
 import { version } from '../shared/version.mjs';
 const el = id => document.getElementById(id);
 const screen = el('screen');
@@ -9,6 +10,7 @@ const token = location.hash.slice(1);
 async function call(name, args = {}) {
   if (local) {
     const response = await fetch('/api', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Panel-Token': token }, body: JSON.stringify({ name, arguments: args }) });
+    if (response.status === 403) throw new Error('Preview session expired. Open the current localhost URL and reload the page.');
     const data = await response.json(); if (!response.ok) throw new Error(data.error); return data;
   }
   const response = await app.callServerTool({ name, arguments: args }, { timeout: 30000 });
@@ -22,7 +24,9 @@ function sync() {
   el('status').dataset.live = String(live);
   el('manual').setAttribute('aria-pressed', String(manual)); el('ai').setAttribute('aria-pressed', String(!manual));
   el('hint').textContent = manual ? 'Click, drag or hold on the live screen.' : 'AI has control. Choose You to take over.';
-  for (const id of ['home', 'send', 'text']) el(id).disabled = !manual || !live || acting || state.busy;
+  for (const id of ['send', 'text']) el(id).disabled = !manual || !live || acting || state.busy;
+  for (const id of ['home', 'recent']) el(id).disabled = Boolean(inputError(state, id, acting));
+  el('capture').disabled = !state.device || state.paused || acting || state.busy;
   for (const id of ['pause', 'disconnect', 'stop']) el(id).disabled = !state.device || acting;
   el('pause').textContent = state.paused ? 'Resume preview' : 'Pause preview';
   el('connect').disabled = acting; el('manual').disabled = el('ai').disabled = !state.device;
@@ -62,9 +66,15 @@ async function perform(fn) {
   try { await fn(); } catch (error) { message(error.message); } finally { acting = false; sync(); }
 }
 async function input(args) {
-  if (state.mode !== 'manual' || !state.live || state.paused || acting || state.busy) return;
-  const session = state.session, frameSeq = seq;
-  await perform(async () => { await call('phone_input', { ...args, session, frameSeq }); message(`${args.action === 'text' ? 'Text' : 'Gesture'} sent`); });
+  const error = inputError(state, args.action, acting);
+  if (error) { message(error); return; }
+  const auth = { session: state.session, ...(seq >= 0 ? { frameSeq: seq } : {}) };
+  await perform(async () => {
+    message(args.action === 'home' ? 'Sending Home…' : args.action === 'recent' ? 'Opening recent apps…' : 'Sending input…');
+    const response = await call('phone_input', { ...args, ...auth });
+    message(args.action === 'home' ? (response.verified ? 'Home screen confirmed' : 'Home sent') : args.action === 'recent' ? 'Recent apps gesture sent' : args.action === 'text' ? 'Text sent' : 'Gesture sent');
+    clearTimeout(timer); void poll();
+  });
 }
 function point(event) { return imagePoint(event.clientX, event.clientY, screen.getBoundingClientRect(), state.imageSize); }
 screen.addEventListener('pointerdown', event => {
@@ -83,6 +93,21 @@ screen.addEventListener('pointerup', event => {
 });
 screen.addEventListener('pointercancel', () => { gesture = null; });
 el('home').onclick = () => input({ action: 'home' });
+el('recent').onclick = () => input({ action: 'recent' });
+el('capture').onclick = () => perform(async () => {
+  message('Taking screenshot…');
+  const { capture } = await call('phone_capture');
+  if (local) {
+    const bytes = Uint8Array.from(atob(capture.data), char => char.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: capture.mimeType }));
+    const link = document.createElement('a'); link.href = url; link.download = capture.filename; document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } else {
+    const response = await app.downloadFile({ contents: [{ type: 'resource', resource: { uri: `file:///${capture.filename}`, mimeType: capture.mimeType, blob: capture.data } }] });
+    if (response.isError) throw new Error('Screenshot captured, but its download was cancelled or unsupported by the host.');
+  }
+  message('Screenshot captured');
+});
 el('send').onclick = () => { const text = el('text').value; if (text) void input({ action: 'text', text }); };
 for (const mode of ['manual', 'ai']) el(mode).onclick = () => perform(async () => { consume(await call('phone_mode', { mode })); message(mode === 'manual' ? 'You have control' : 'AI control enabled'); });
 el('connect').onclick = () => perform(async () => { consume(await call('phone_connect', { deviceId: el('devices').value })); clearTimeout(timer); void poll(); message('Connecting screen…'); });

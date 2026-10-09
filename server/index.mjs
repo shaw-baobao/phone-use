@@ -12,17 +12,18 @@ const controller = new Controller();
 const uri = resourceUri;
 const html = () => readFile(new URL('../assets/panel.html', import.meta.url), 'utf8');
 const point = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict();
-const actionShape = { action: z.enum(['tap', 'longpress', 'swipe', 'text', 'home', 'launch']), point: point.optional(), from: point.optional(), to: point.optional(), duration: z.number().int().min(100).max(2000).optional(), text: z.string().min(1).max(4000).optional(), bundleId: z.string().max(200).optional(), session: z.string().max(100).optional(), frameSeq: z.number().int().nonnegative().optional() };
+const actionShape = { action: z.enum(['tap', 'longpress', 'swipe', 'text', 'home', 'recent', 'launch']), point: point.optional(), from: point.optional(), to: point.optional(), duration: z.number().int().min(100).max(2000).optional(), text: z.string().min(1).max(4000).optional(), bundleId: z.string().max(200).optional(), session: z.string().max(100).optional(), frameSeq: z.number().int().nonnegative().optional() };
 const actionSchema = z.object(actionShape).strict();
 const uiMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false }, 'openai/ui': { availableDisplayModes: ['fullscreen'], preferredDisplayMode: 'fullscreen' } };
 function result(data) {
-  const { frame, observationFrame, ...summary } = data;
+  const { frame, observationFrame, capture, ...summary } = data;
   return { content: [{ type: 'text', text: JSON.stringify(summary) }], structuredContent: observationFrame ? summary : data, ...(observationFrame ? { content: [{ type: 'text', text: JSON.stringify(summary) }, { type: 'image', data: observationFrame.data, mimeType: observationFrame.mimeType }] } : {}) };
 }
 function guarded(fn) { return async args => { try { return result(await fn(args)); } catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; } }; }
 
 const handlers = {
   phone_open: async ({ deviceId }) => deviceId ? controller.connect(deviceId) : { ...controller.state(), devices: await controller.devices() },
+  phone_capture: async () => controller.capture(),
   phone_frame: async ({ after = -1 }) => controller.poll(after),
   phone_connect: async ({ deviceId }) => controller.connect(deviceId),
   phone_mode: async ({ mode }) => controller.setMode(mode),
@@ -41,9 +42,9 @@ const schemas = {
   phone_pause: z.object({ paused: z.boolean() }).strict(),
   phone_stop: z.object({ automation: z.boolean().optional() }).strict(),
   phone_input: actionSchema, phone_action: actionSchema,
-  phone_observe: z.object({}).strict(), phone_devices: z.object({}).strict(),
+  phone_capture: z.object({}).strict(), phone_observe: z.object({}).strict(), phone_devices: z.object({}).strict(),
 };
-const appOnly = new Set(['phone_frame', 'phone_connect', 'phone_mode', 'phone_pause', 'phone_input']);
+const appOnly = new Set(['phone_frame', 'phone_connect', 'phone_mode', 'phone_pause', 'phone_input', 'phone_capture']);
 const descriptions = {
   phone_open: 'Open the interactive Phone Use panel. List devices first, then choose the user-requested exact device ID. Starting a device requires an installed MobileCLI agent. Control starts in manual mode.',
   phone_devices: 'List connected devices. Never guess an ID or control a different device.',
@@ -75,7 +76,7 @@ if (process.argv.includes('--preview')) {
   registerAppResource(server, 'Phone Use', uri, { _meta: uiMeta }, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: await html(), _meta: uiMeta }] }));
   for (const [name, handler] of Object.entries(handlers)) {
     const _meta = name === 'phone_open' ? { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'thread' }] } } : appOnly.has(name) ? { ui: { visibility: ['app'] } } : {};
-    registerAppTool(server, name, { title: name === 'phone_open' ? 'Phone Use' : name, description: descriptions[name] || name, inputSchema: schemas[name].shape, _meta, annotations: { readOnlyHint: ['phone_devices', 'phone_observe', 'phone_frame'].includes(name), openWorldHint: false } }, guarded(handler));
+    registerAppTool(server, name, { title: name === 'phone_open' ? 'Phone Use' : name, description: descriptions[name] || name, inputSchema: schemas[name].shape, _meta, annotations: { readOnlyHint: ['phone_devices', 'phone_observe', 'phone_frame', 'phone_capture'].includes(name), openWorldHint: false } }, guarded(handler));
   }
   await server.connect(new StdioServerTransport());
 }

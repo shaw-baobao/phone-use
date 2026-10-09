@@ -28959,7 +28959,8 @@ var Controller = class {
       if (epoch !== this.epoch) throw new Error("Control changed while this action was queued. Nothing was sent.");
       if (!this.device || this.paused || this.mode !== actor) throw new Error(`Control belongs to ${this.mode}; preview may be paused. Nothing was sent.`);
       const displayed = this.frames.get(args.frameSeq);
-      if (actor === "manual" && (!displayed || this.now() - displayed.at > 2500 || args.session !== this.session || !this.frame || this.now() - this.frame.at > 2500)) throw new Error("The preview is stale. Wait for a live frame before controlling the device.");
+      if (actor === "manual" && args.session !== this.session) throw new Error("Control session changed. Reconnect the selected device. Nothing was sent.");
+      if (actor === "manual" && !["home", "recent", "launch"].includes(args.action) && (!displayed || this.now() - displayed.at > 2500 || args.session !== this.session || !this.frame || this.now() - this.frame.at > 2500)) throw new Error("The preview is stale. Wait for a live frame before controlling the device.");
       const target = ["--device", this.device.id];
       let command;
       const point2 = (value) => mapPoint(value, this.viewport()).join(",");
@@ -28978,8 +28979,17 @@ var Controller = class {
           command = ["io", "text", ...target, "--", args.text];
           break;
         case "home":
-          command = ["io", "button", ...target, "HOME"];
+          command = this.device.platform === "ios" && this.device.type !== "simulator" ? ["io", "keys", ...target, "cmd+h"] : ["io", "button", ...target, "HOME"];
           break;
+        case "recent": {
+          if (this.device.platform === "android") command = ["io", "button", ...target, "APP_SWITCH"];
+          else {
+            const size = this.viewport();
+            const x = Math.round(size.width / 2);
+            command = ["io", "swipe", ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.57)}`, "--duration", "1200"];
+          }
+          break;
+        }
         case "launch":
           if (!/^[a-zA-Z0-9_.-]{3,200}$/.test(args.bundleId || "")) throw new Error("Invalid application ID");
           command = ["apps", "launch", args.bundleId, ...target];
@@ -28988,7 +28998,26 @@ var Controller = class {
           throw new Error("Unsupported action");
       }
       await this.run(command);
+      if (args.action === "home" && this.device.platform === "ios") {
+        let foreground;
+        for (let attempt = 0; attempt < 6; attempt++) {
+          if (attempt) await new Promise((resolve) => setTimeout(resolve, 200));
+          foreground = await this.run(["apps", "foreground", ...target]);
+          if (foreground.packageName === "com.apple.springboard") break;
+        }
+        if (foreground.packageName !== "com.apple.springboard") throw new Error("Home input was sent, but the phone did not return to its Home screen. Check the device and its agent before trying again.");
+        return { ok: true, action: "home", verified: true, verification: "SpringBoard is in the foreground" };
+      }
       return { ok: true, action: args.action, verified: false };
+    });
+  }
+  async capture() {
+    const epoch = this.epoch;
+    return this.exclusive(async () => {
+      if (epoch !== this.epoch || !this.device || this.paused) throw new Error("Connect and resume the selected device before taking a screenshot.");
+      const bytes = await this.run(["screenshot", "--device", this.device.id, "--format", "png", "--output", "-"], { raw: true });
+      if (!Buffer.isBuffer(bytes) || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error("MobileCLI did not return a PNG screenshot.");
+      return { capture: { mimeType: "image/png", data: bytes.toString("base64"), filename: `phone-use-${new Date(this.now()).toISOString().replace(/[:.]/g, "-")}.png` } };
     });
   }
   async observe() {
@@ -29030,7 +29059,7 @@ var Controller = class {
 // package.json
 var package_default = {
   name: "phone-use",
-  version: "0.1.1",
+  version: "0.1.2",
   description: "Interactive mobile screen and shared human/AI control in Codex, powered by MobileCLI",
   type: "module",
   private: true,
@@ -29066,11 +29095,11 @@ var controller = new Controller();
 var uri = resourceUri;
 var html = () => readFile(new URL("../assets/panel.html", import.meta.url), "utf8");
 var point = external_exports.object({ x: external_exports.number().min(0).max(1), y: external_exports.number().min(0).max(1) }).strict();
-var actionShape = { action: external_exports.enum(["tap", "longpress", "swipe", "text", "home", "launch"]), point: point.optional(), from: point.optional(), to: point.optional(), duration: external_exports.number().int().min(100).max(2e3).optional(), text: external_exports.string().min(1).max(4e3).optional(), bundleId: external_exports.string().max(200).optional(), session: external_exports.string().max(100).optional(), frameSeq: external_exports.number().int().nonnegative().optional() };
+var actionShape = { action: external_exports.enum(["tap", "longpress", "swipe", "text", "home", "recent", "launch"]), point: point.optional(), from: point.optional(), to: point.optional(), duration: external_exports.number().int().min(100).max(2e3).optional(), text: external_exports.string().min(1).max(4e3).optional(), bundleId: external_exports.string().max(200).optional(), session: external_exports.string().max(100).optional(), frameSeq: external_exports.number().int().nonnegative().optional() };
 var actionSchema = external_exports.object(actionShape).strict();
 var uiMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false }, "openai/ui": { availableDisplayModes: ["fullscreen"], preferredDisplayMode: "fullscreen" } };
 function result(data) {
-  const { frame, observationFrame, ...summary } = data;
+  const { frame, observationFrame, capture, ...summary } = data;
   return { content: [{ type: "text", text: JSON.stringify(summary) }], structuredContent: observationFrame ? summary : data, ...observationFrame ? { content: [{ type: "text", text: JSON.stringify(summary) }, { type: "image", data: observationFrame.data, mimeType: observationFrame.mimeType }] } : {} };
 }
 function guarded(fn) {
@@ -29084,6 +29113,7 @@ function guarded(fn) {
 }
 var handlers = {
   phone_open: async ({ deviceId }) => deviceId ? controller.connect(deviceId) : { ...controller.state(), devices: await controller.devices() },
+  phone_capture: async () => controller.capture(),
   phone_frame: async ({ after = -1 }) => controller.poll(after),
   phone_connect: async ({ deviceId }) => controller.connect(deviceId),
   phone_mode: async ({ mode }) => controller.setMode(mode),
@@ -29103,10 +29133,11 @@ var schemas = {
   phone_stop: external_exports.object({ automation: external_exports.boolean().optional() }).strict(),
   phone_input: actionSchema,
   phone_action: actionSchema,
+  phone_capture: external_exports.object({}).strict(),
   phone_observe: external_exports.object({}).strict(),
   phone_devices: external_exports.object({}).strict()
 };
-var appOnly = /* @__PURE__ */ new Set(["phone_frame", "phone_connect", "phone_mode", "phone_pause", "phone_input"]);
+var appOnly = /* @__PURE__ */ new Set(["phone_frame", "phone_connect", "phone_mode", "phone_pause", "phone_input", "phone_capture"]);
 var descriptions = {
   phone_open: "Open the interactive Phone Use panel. List devices first, then choose the user-requested exact device ID. Starting a device requires an installed MobileCLI agent. Control starts in manual mode.",
   phone_devices: "List connected devices. Never guess an ID or control a different device.",
@@ -29155,7 +29186,7 @@ if (process.argv.includes("--preview")) {
   N3(server, "Phone Use", uri, { _meta: uiMeta }, async () => ({ contents: [{ uri, mimeType: p, text: await html(), _meta: uiMeta }] }));
   for (const [name, handler] of Object.entries(handlers)) {
     const _meta = name === "phone_open" ? { ui: { resourceUri: uri }, "openai/ui": { entrypoints: [{ type: "thread" }] } } : appOnly.has(name) ? { ui: { visibility: ["app"] } } : {};
-    K3(server, name, { title: name === "phone_open" ? "Phone Use" : name, description: descriptions[name] || name, inputSchema: schemas[name].shape, _meta, annotations: { readOnlyHint: ["phone_devices", "phone_observe", "phone_frame"].includes(name), openWorldHint: false } }, guarded(handler));
+    K3(server, name, { title: name === "phone_open" ? "Phone Use" : name, description: descriptions[name] || name, inputSchema: schemas[name].shape, _meta, annotations: { readOnlyHint: ["phone_devices", "phone_observe", "phone_frame", "phone_capture"].includes(name), openWorldHint: false } }, guarded(handler));
   }
   await server.connect(new StdioServerTransport());
 }

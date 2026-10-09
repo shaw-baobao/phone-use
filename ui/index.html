@@ -2,9 +2,14 @@
 <body><main>
   <header><div><strong>Phone Use</strong><span class="subtitle">Your phone, within reach.</span></div><span id="status" role="status">Disconnected</span></header>
   <section class="connection"><label for="devices">Device</label><select id="devices"><option value="">Choose a device</option></select><button id="connect">Connect</button><button id="refresh" title="Refresh device list">↻</button></section>
-  <section class="workspace"><div id="stage"><img id="screen" alt="Live device screen. Drag to swipe; hold to long-press." draggable="false" hidden tabindex="0"><p id="empty">Connect a device to see its screen.</p><span id="cursor" hidden></span></div>
+  <section class="workspace"><div class="phone-view"><div id="stage"><img id="screen" alt="Live device screen. Drag to swipe; hold to long-press." draggable="false" hidden tabindex="0"><p id="empty">Connect a device to see its screen.</p><span id="cursor" hidden></span></div>
+    <nav class="device-controls" aria-label="Device controls">
+      <button id="home" aria-label="Home" title="Return to Home screen" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 10h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 17h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4z"/></svg><span>Home</span></button>
+      <button id="capture" aria-label="Screenshot" title="Capture and save screenshot" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 9.5 3h5L16 5h4v15H4V5h4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Screenshot</span></button>
+      <button id="recent" aria-label="Recent apps" title="Open recent apps / app switcher" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 3h10v10M17 1l3 2-3 2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Recent apps</span></button>
+    </nav></div>
   <aside><div class="control"><span class="label">Control</span><div class="segmented"><button id="manual" aria-pressed="true">You</button><button id="ai" aria-pressed="false">AI</button></div><p id="hint">Click, drag or hold on the live screen.</p></div>
-    <button id="home" disabled>⌂ <span>Home</span></button><button id="pause" disabled>Pause preview</button>
+    <button id="pause" disabled>Pause preview</button>
     <label for="text">Type into focused field</label><textarea id="text" rows="3" placeholder="Text to send…" maxlength="4000" disabled></textarea><button id="send" disabled>Send text</button>
     <div class="bottom"><button id="disconnect" disabled>Disconnect</button><button id="stop" disabled>Stop automation</button><small>Stopping automation ends the iOS agent. Disconnecting only stops this preview.</small></div>
   </aside></section><footer><span id="message" role="status">Powered by MobileCLI</span><span id="dimensions"></span></footer>
