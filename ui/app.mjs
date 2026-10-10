@@ -122,13 +122,13 @@ el('connect').onclick = () => perform(async () => {
 });
 el('refresh').onclick = () => perform(devices);
 el('pause').onclick = () => perform(async () => { consume(await call('phone_pause', { paused: !state.paused })); clearTimeout(timer); void poll(); });
-for (const [id, automation] of [['disconnect', false], ['stop', true]]) el(id).onclick = () => {
+for (const id of ['disconnect', 'stop']) el(id).onclick = () => {
   if (stopping) return;
   stopping = true;
   void perform(async () => {
-    const result = await call('phone_stop', { automation });
+    const result = await call('phone_stop', { automation: true });
     consume(await call('phone_frame', { after: seq })); clearTimeout(timer);
-    message(automation ? (result.automationStopped ? 'Automation stopped' : 'Disconnected; no iOS runner was stopped') : 'Disconnected');
+    message(result.automationStopped ? 'Automation stopped' : 'Disconnected; no iOS runner was stopped');
   }, true).finally(() => { stopping = false; sync(); });
 };
 document.addEventListener('visibilitychange', () => { clearTimeout(timer); if (!document.hidden) void poll(); });

@@ -67,3 +67,22 @@ test('panel can stop a pending connection and reports stop failures', async t =>
   assert.equal(el('connect').disabled, false);
   assert.equal(el('stop').disabled, false);
 });
+
+test('Disconnect terminates the selected iOS runner and clears the panel connection', async t => {
+  const calls = [];
+  const { c, el } = await panel(t, async args => {
+    calls.push(args);
+    if (args[0] === 'devices') return { devices: [device] };
+    if (args[0] === 'device') return { device: { screenSize: { width: 420, height: 912 } } };
+    if (args[0] === 'agent') return { agent: { bundleId: 'test.runner' } };
+    return {};
+  });
+  await el('connect').onclick();
+  assert.equal(el('disconnect').disabled, false);
+  el('disconnect').onclick(); await turn(); await turn();
+  assert.deepEqual(calls.at(-1), ['apps', 'terminate', 'test.runner', '--device', 'test']);
+  assert.equal(c.device, null);
+  assert.equal(c.connectionDevice, null);
+  assert.equal(el('message').textContent, 'Automation stopped');
+  assert.equal(el('disconnect').disabled, true);
+});
