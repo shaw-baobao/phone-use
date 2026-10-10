@@ -78,6 +78,12 @@ codex mcp remove phone_use
 codex plugin remove phone-use@phone-use-local
 ```
 
+## 连接失败后的恢复
+
+MobileCLI 报告 WebDriverAgent 或 DeviceKit 未就绪时，面板显示 **Connection failed** 并保留原始错误。能发现设备、代理已安装、手机已解锁，都不能证明代理服务已连通。连接等待中或失败后仍可点击 **停止自动化**：取消当前 CLI 等待，并尝试停止已确认选中的 iOS 执行程序，然后手动点击 **连接** 重试。取消 CLI 请求不保证 MobileCLI 共享守护进程已取消内部任务；插件不会重启共享守护进程，也不会自动重试手机输入。
+
+回归验证：`node --test tests/core.test.mjs tests/connection-ui.test.mjs tests/cli.test.mjs`。这些测试覆盖失败状态、取消连接和面板恢复按钮；实时画面是否可用仍需在目标手机上验证。
+
 ## 本地浏览器预览
 
 ```sh

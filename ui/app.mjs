@@ -4,7 +4,7 @@ import { inputError } from './controls.mjs';
 import { version } from '../shared/version.mjs';
 const el = id => document.getElementById(id);
 const screen = el('screen');
-let app, state = {}, seq = -1, running = false, timer, acting = false, gesture, disposed = false;
+let app, state = {}, seq = -1, running = false, timer, acting = false, operations = 0, stopping = false, gesture, disposed = false;
 const local = location.protocol === 'http:' && location.hostname === '127.0.0.1';
 const token = location.hash.slice(1);
 async function call(name, args = {}) {
@@ -20,14 +20,15 @@ async function call(name, args = {}) {
 function message(text) { el('message').textContent = text; }
 function sync() {
   const manual = state.mode === 'manual', live = state.live && !state.paused;
-  el('status').textContent = state.paused ? 'Paused' : live ? 'Live' : state.device ? 'Connecting' : 'Disconnected';
+  el('status').textContent = state.connecting ? 'Connecting' : state.error ? 'Connection failed' : state.paused ? 'Paused' : live ? 'Live' : state.device ? 'Connecting' : 'Disconnected';
   el('status').dataset.live = String(live);
   el('manual').setAttribute('aria-pressed', String(manual)); el('ai').setAttribute('aria-pressed', String(!manual));
   el('hint').textContent = manual ? 'Click, drag or hold on the live screen.' : 'AI has control. Choose You to take over.';
   for (const id of ['send', 'text']) el(id).disabled = !manual || !live || acting || state.busy;
   for (const id of ['home', 'recent']) el(id).disabled = Boolean(inputError(state, id, acting));
   el('capture').disabled = !state.device || state.paused || acting || state.busy;
-  for (const id of ['pause', 'disconnect', 'stop']) el(id).disabled = !state.device || acting;
+  el('pause').disabled = !state.device || acting;
+  for (const id of ['disconnect', 'stop']) el(id).disabled = stopping || !(state.device || state.connectionDevice || state.connecting) || (acting && !state.connecting);
   el('pause').textContent = state.paused ? 'Resume preview' : 'Pause preview';
   el('connect').disabled = acting; el('manual').disabled = el('ai').disabled = !state.device;
   screen.style.cursor = manual && live && !acting ? 'crosshair' : 'default';
@@ -61,9 +62,9 @@ async function poll() {
   catch (error) { state.live = false; sync(); message(error.message); }
   finally { running = false; if (!disposed && !document.hidden && state.device && !state.paused) timer = setTimeout(poll, state.live ? 120 : 700); }
 }
-async function perform(fn) {
-  if (acting) return; acting = true; sync();
-  try { await fn(); } catch (error) { message(error.message); } finally { acting = false; sync(); }
+async function perform(fn, interrupt = false) {
+  if (acting && !interrupt) return; operations++; acting = true; sync();
+  try { await fn(); } catch (error) { if (!stopping || interrupt) message(error.message); } finally { acting = --operations > 0; sync(); }
 }
 async function input(args) {
   const error = inputError(state, args.action, acting);
@@ -110,10 +111,26 @@ el('capture').onclick = () => perform(async () => {
 });
 el('send').onclick = () => { const text = el('text').value; if (text) void input({ action: 'text', text }); };
 for (const mode of ['manual', 'ai']) el(mode).onclick = () => perform(async () => { consume(await call('phone_mode', { mode })); message(mode === 'manual' ? 'You have control' : 'AI control enabled'); });
-el('connect').onclick = () => perform(async () => { consume(await call('phone_connect', { deviceId: el('devices').value })); clearTimeout(timer); void poll(); message('Connecting screen…'); });
+el('connect').onclick = () => perform(async () => {
+  state.connecting = true; state.error = null; sync(); message('Starting device connection…');
+  try { consume(await call('phone_connect', { deviceId: el('devices').value })); clearTimeout(timer); void poll(); message('Connecting screen…'); }
+  catch (error) {
+    try { consume(await call('phone_frame', { after: seq })); } catch { /* Preserve the original connection failure. */ }
+    if (state.paused && /cancelled|Control changed/i.test(error.message)) return;
+    throw error;
+  } finally { state.connecting = false; sync(); }
+});
 el('refresh').onclick = () => perform(devices);
 el('pause').onclick = () => perform(async () => { consume(await call('phone_pause', { paused: !state.paused })); clearTimeout(timer); void poll(); });
-for (const [id, automation] of [['disconnect', false], ['stop', true]]) el(id).onclick = () => perform(async () => { consume(await call('phone_stop', { automation })); state.device = null; consume(state); clearTimeout(timer); message(automation ? (state.automationStopped ? 'Automation stopped' : 'Disconnected; no iOS runner was stopped') : 'Disconnected'); });
+for (const [id, automation] of [['disconnect', false], ['stop', true]]) el(id).onclick = () => {
+  if (stopping) return;
+  stopping = true;
+  void perform(async () => {
+    const result = await call('phone_stop', { automation });
+    consume(await call('phone_frame', { after: seq })); clearTimeout(timer);
+    message(automation ? (result.automationStopped ? 'Automation stopped' : 'Disconnected; no iOS runner was stopped') : 'Disconnected');
+  }, true).finally(() => { stopping = false; sync(); });
+};
 document.addEventListener('visibilitychange', () => { clearTimeout(timer); if (!document.hidden) void poll(); });
 window.addEventListener('pagehide', () => { clearTimeout(timer); gesture = null; });
 window.addEventListener('pageshow', () => { void poll(); });

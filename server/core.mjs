@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
-export function cli(args, { binary = process.env.MOBILECLI_BIN || 'mobilecli', timeout = 25000, raw = false } = {}) {
+export function cli(args, { binary = process.env.MOBILECLI_BIN || 'mobilecli', timeout = 25000, raw = false, signal } = {}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error('Connection cancelled.'));
     const child = spawn(binary, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: false });
     let output = Buffer.alloc(0), failed = false;
-    const finish = (error, value) => { if (failed) return; failed = true; clearTimeout(timer); error ? reject(error) : resolve(value); };
+    const finish = (error, value) => { if (failed) return; failed = true; clearTimeout(timer); signal?.removeEventListener('abort', abort); error ? reject(error) : resolve(value); };
     const timer = setTimeout(() => { child.kill('SIGTERM'); finish(new Error('MobileCLI timed out. Read fresh state before repeating an action.')); }, timeout);
+    const abort = () => { child.kill('SIGTERM'); finish(new Error('Connection cancelled.')); };
+    signal?.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', chunk => {
       if (output.length + chunk.length > 8 * 1024 * 1024) { child.kill(); finish(new Error('MobileCLI response exceeds 8 MiB')); }
       else output = Buffer.concat([output, chunk]);
@@ -69,24 +72,43 @@ export class Controller {
   constructor({ run = cli, launch = spawn, now = Date.now } = {}) {
     this.run = run; this.launch = launch; this.now = now;
     this.device = null; this.size = null; this.mode = 'manual'; this.epoch = 0;
+    this.connectionDevice = null; this.connecting = false; this.connectAbort = null;
     this.tail = Promise.resolve(); this.busy = false; this.stream = null; this.frame = null;
     this.seq = 0; this.frames = new Map(); this.lastLease = 0; this.lastRestart = 0; this.error = null; this.paused = false;
     this.session = randomUUID(); this.watch = setInterval(() => { if (this.now() - this.lastLease > 5000) this.stopStream(); }, 1000); this.watch.unref();
   }
   async devices() { return (await this.run(['devices'])).devices; }
   async connect(id) {
-    const epoch = this.epoch;
-    return this.exclusive(async () => {
-      const device = (await this.devices()).find(item => item.id === id && item.state === 'online');
-      if (!device) throw new Error('Select an online device from the device list.');
-      const response = await this.run(['device', 'info', '--device', id]);
-      const info = response.device || response;
-      if (!info.screenSize?.width || !info.screenSize?.height) throw new Error('MobileCLI did not return screen dimensions.');
-      if (epoch !== this.epoch) throw new Error('Control changed during connection. Nothing was connected.');
-      this.epoch++; this.stopStream(); this.device = device; this.size = info.screenSize;
-      this.frame = null; this.frames.clear(); this.seq = 0; this.mode = 'manual'; this.paused = false; this.session = randomUUID(); this.error = null;
-      return this.state();
-    });
+    if (this.connecting) throw new Error('A connection is already pending. Disconnect before trying again.');
+    const epoch = ++this.epoch, abort = new AbortController();
+    this.connecting = true; this.connectAbort = abort; this.error = null; this.connectionDevice = null;
+    const check = () => { if (epoch !== this.epoch || abort.signal.aborted) throw new Error('Control changed during connection. Connection cancelled.'); };
+    try {
+      await this.exclusive(async () => {
+        check();
+        const device = (await this.run(['devices'], { signal: abort.signal })).devices.find(item => item.id === id && item.state === 'online');
+        check();
+        if (!device) throw new Error('Select an online device from the device list.');
+        this.connectionDevice = device;
+        this.stopStream(); this.device = null; this.size = null; this.frame = null; this.frames.clear();
+        this.session = randomUUID(); this.paused = false; this.mode = 'manual';
+        const response = await this.run(['device', 'info', '--device', id], { signal: abort.signal });
+        check();
+        const info = response.device || response;
+        if (!info.screenSize?.width || !info.screenSize?.height) throw new Error('MobileCLI did not return screen dimensions.');
+        this.device = device; this.size = info.screenSize; this.seq = 0;
+      });
+    } catch (error) {
+      if (epoch === this.epoch) {
+        this.error = /WebDriverAgent|wait for agent|start agent/i.test(error.message)
+          ? `DeviceKit did not become ready. An installed agent or an unlocked phone does not confirm a working connection. Choose Stop automation, then Connect to retry. MobileCLI: ${error.message}`
+          : error.message;
+      }
+      throw new Error(this.error || error.message);
+    } finally {
+      this.connecting = false; this.connectAbort = null;
+    }
+    return this.state();
   }
   exclusive(task) {
     const next = this.tail.catch(() => {}).then(async () => { this.busy = true; try { return await task(); } finally { this.busy = false; } });
@@ -96,7 +118,7 @@ export class Controller {
   pause(paused) { this.epoch++; this.paused = paused; if (paused) { this.stopStream(); this.frame = null; } return this.state(); }
   state(after = -1) {
     const age = this.frame ? this.now() - this.frame.at : null;
-    return { session: this.session, device: this.device, viewport: this.viewport(), mode: this.mode, paused: this.paused, busy: this.busy, error: this.error,
+    return { session: this.session, device: this.device, connectionDevice: this.connectionDevice, connecting: this.connecting, viewport: this.viewport(), mode: this.mode, paused: this.paused, busy: this.busy, error: this.error,
       live: age !== null && age < 2500, frame: !this.paused && this.frame && this.frame.seq !== after ? this.frame : null, frameAge: age };
   }
   viewport() {
@@ -179,8 +201,9 @@ export class Controller {
     return this.exclusive(async () => { if (!this.device || this.paused) throw new Error('Connect and resume the device first.'); return this.run(['dump', 'ui', '--device', this.device.id]); });
   }
   async stop(automation = false) {
-    const device = this.device;
+    const device = this.connectionDevice || this.device;
     this.epoch++; this.paused = true; this.stopStream(); this.frame = null;
+    this.connectAbort?.abort(); this.error = null;
     return this.exclusive(async () => {
       let automationStopped = false;
       if (automation && device?.platform === 'ios') {
@@ -191,8 +214,8 @@ export class Controller {
           automationStopped = true;
         }
       }
-      this.device = null; this.size = null; return { ok: true, automationStopped };
+      this.device = null; this.connectionDevice = null; this.size = null; return { ok: true, automationStopped };
     });
   }
-  close() { clearInterval(this.watch); this.stopStream(); }
+  close() { this.connectAbort?.abort(); clearInterval(this.watch); this.stopStream(); }
 }

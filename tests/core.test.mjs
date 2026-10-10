@@ -93,3 +93,76 @@ test('Home verification waits for the foreground transition without repeating in
   assert.equal((await f.c.action({ action: 'home', session: f.c.session })).verified, true);
   assert.equal(reads, 2); assert.equal(f.calls.filter(args => args[0] === 'io').length, 1);
 });
+
+test('failed connection retains its error and selected runner for explicit recovery', async t => {
+  const f = fixture(t), run = f.c.run;
+  f.c.run = async (args, options) => {
+    if (args[0] === 'device') throw new Error('timed out waiting for WebDriverAgent to be ready');
+    return run(args, options);
+  };
+  await assert.rejects(f.c.connect('test'), /WebDriverAgent/);
+  const state = f.c.state();
+  assert.match(state.error, /WebDriverAgent/);
+  assert.equal(state.connectionDevice.id, 'test');
+  assert.equal(state.connecting, false);
+  assert.equal(state.busy, false);
+  assert.equal(state.device, null);
+  assert.equal((await f.c.stop(true)).automationStopped, true);
+  assert.deepEqual(f.calls.at(-1), ['apps', 'terminate', 'test.runner', '--device', 'test']);
+  assert.equal(f.c.state().connectionDevice, null);
+});
+
+test('cancelling discovery never starts an agent on the cancelled device', async t => {
+  const f = fixture(t), run = f.c.run; let release; const calls = [];
+  f.c.run = async (args, options) => {
+    calls.push(args);
+    if (args[0] === 'devices') await new Promise(resolve => { release = resolve; });
+    return run(args, options);
+  };
+  const connection = f.c.connect('test');
+  await new Promise(resolve => setImmediate(resolve));
+  const stopped = f.c.stop(true); release();
+  await assert.rejects(connection, /cancelled|Control changed/);
+  assert.equal((await stopped).automationStopped, false);
+  assert.deepEqual(calls, [['devices']]);
+  assert.equal(f.c.state().error, null);
+});
+
+test('stop aborts pending device info and allows a clean reconnection', async t => {
+  const f = fixture(t), run = f.c.run; let started;
+  const ready = new Promise(resolve => { started = resolve; });
+  f.c.run = async (args, options) => {
+    if (args[0] === 'device') {
+      started();
+      return new Promise((resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new Error('Connection cancelled.')), { once: true }));
+    }
+    return run(args, options);
+  };
+  const connection = f.c.connect('test'); await ready;
+  assert.equal(f.c.state().connecting, true);
+  const stopped = f.c.stop(true);
+  await assert.rejects(connection, /cancelled/); await stopped;
+  assert.equal(f.c.state().error, null);
+  f.c.run = run;
+  const state = await f.c.connect('test');
+  assert.equal(state.device.id, 'test');
+  assert.equal(state.busy, false);
+  assert.equal(state.connecting, false);
+  assert.equal(state.error, null);
+});
+
+test('late info results and duplicate connections cannot replace the cancelled target', async t => {
+  const f = fixture(t), run = f.c.run; let release;
+  f.c.run = async (args, options) => {
+    if (args[0] === 'device') await new Promise(resolve => { release = resolve; });
+    return run(args, options);
+  };
+  const connection = f.c.connect('test'); await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(f.c.connect('other'), /already pending/);
+  const stopped = f.c.stop(false); release();
+  await assert.rejects(connection, /cancelled/); await stopped;
+  assert.equal(f.c.device, null);
+  assert.equal(f.c.connectionDevice, null);
+  assert.equal(f.c.state().error, null);
+  assert.equal(f.c.state().connecting, false);
+});

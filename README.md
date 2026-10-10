@@ -78,6 +78,12 @@ codex mcp remove phone_use
 codex plugin remove phone-use@phone-use-local
 ```
 
+## Connection recovery
+
+If MobileCLI reports that WebDriverAgent or DeviceKit did not become ready, the panel shows **Connection failed** and preserves the original error. Device discovery, an installed agent, and an unlocked phone do not prove that the agent service is reachable. **Stop automation** remains available while connecting and after a failed connection; it cancels the pending CLI read and attempts to terminate only the selected iOS runner. Then choose **Connect** to retry explicitly. Cancelling a CLI request does not guarantee that MobileCLI's shared daemon has cancelled its internal work; this plugin does not restart the shared daemon or retry input automatically.
+
+Regression checks: `node --test tests/core.test.mjs tests/connection-ui.test.mjs tests/cli.test.mjs`. These check failure state, cancellation, and panel recovery controls; a working live screen still requires verification on the target device.
+
 ## Local browser preview
 
 ```sh
