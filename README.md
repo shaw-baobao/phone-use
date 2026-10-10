@@ -16,7 +16,7 @@ An open-source Codex MCP App for viewing and directly controlling a connected ph
 - **Pause preview** stops screen capture. Both **Disconnect** and **Stop automation** release the panel's connection and terminate the selected iOS DeviceKit runner to end the phone's automation session. Paused capture blocks device input and screenshot capture. Pausing alone can leave iOS's “Automation Running” indicator visible.
 - MCP tools for device discovery, UI-tree observation, optional fresh screen images, and AI actions. Manual controls call app-only tools directly, without a model round trip.
 
-Frames are requested at up to 10 fps, scaled to 50%. The app polls the latest frame about every 120 ms. This is interactive screen mirroring, not a guaranteed-latency video transport. Hidden or closed panels stop leasing capture; the server stops its stream within roughly 6 seconds. It does not automatically terminate a device agent when the panel closes.
+Frames are requested at up to 10 fps, at full source resolution (scale 1). The app polls the latest frame about every 120 ms. This is interactive screen mirroring, not a guaranteed-latency video transport. Hidden or closed panels stop leasing capture; the server stops its stream within roughly 6 seconds. It does not automatically terminate a device agent when the panel closes.
 
 ## Requirements
 

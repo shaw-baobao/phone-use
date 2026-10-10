@@ -132,7 +132,7 @@ export class Controller {
   startStream() {
     if (this.stream || this.now() - this.lastRestart < 3000) return;
     this.lastRestart = this.now();
-    const child = this.launch(process.env.MOBILECLI_BIN || 'mobilecli', ['screencapture', '--device', this.device.id, '--format', 'mjpeg', '--fps', '10', '--scale', '0.5'], { stdio: ['ignore', 'pipe', 'pipe'], shell: false });
+    const child = this.launch(process.env.MOBILECLI_BIN || 'mobilecli', ['screencapture', '--device', this.device.id, '--format', 'mjpeg', '--fps', '10', '--scale', '1'], { stdio: ['ignore', 'pipe', 'pipe'], shell: false });
     this.stream = child; const parser = new JpegParser(bytes => {
       if (this.stream !== child || this.paused) return;
       const size = jpegSize(bytes); if (!size) return;

@@ -33,14 +33,13 @@ button:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-v
 .workspace{display:flex;flex:1;min-height:0;position:relative}
 .phone-view{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;padding:26px 24px 12px;gap:12px}
 #stage{position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-width:0;min-height:0}
-#screen{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;touch-action:none;user-select:none;-webkit-user-drag:none;border-radius:14px;box-shadow:0 0 0 1px #00000020,0 12px 30px #00000016}
+#screen{cursor:default;display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;touch-action:none;user-select:none;-webkit-user-drag:none;border-radius:14px;box-shadow:0 0 0 1px #00000020,0 12px 30px #00000016}
 #hint{text-align:center;font-size:11px;color:var(--muted);margin:0;line-height:1.5;flex-shrink:0}
 .empty-state{text-align:center;max-width:320px;color:var(--muted)}
 .empty-state svg{width:64px;height:80px;fill:none;stroke:currentColor;stroke-width:1.5;opacity:.65;margin-bottom:20px}
 .empty-state h1{color:var(--ink);font-size:21px;letter-spacing:-.5px;font-weight:600;margin:0 0 10px}
 .empty-state p{margin:0;font-size:13px;line-height:1.65}
 #stage[data-screen=true] .empty-state{display:none}
-#cursor{position:absolute;width:20px;height:20px;margin:-10px;border:2px solid white;border-radius:50%;background:#007aff55;pointer-events:none;box-shadow:0 0 0 1px #00000044}
 aside{width:248px;flex-shrink:0;overflow:auto;background:var(--chrome);border-left:1px solid var(--line);padding:22px 18px;display:flex;flex-direction:column;gap:24px}
 .inspector-heading h2{font-size:15px;margin:0 0 4px;font-weight:600}
 .inspector-heading span{color:var(--muted);font-size:11px}

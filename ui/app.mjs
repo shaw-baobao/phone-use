@@ -54,7 +54,6 @@ function sync() {
   for (const id of ['disconnect', 'stop']) el(id).disabled = stopping || !(state.device || state.connectionDevice || state.connecting) || (acting && !state.connecting);
   el('pause').textContent = state.paused ? 'Resume preview' : 'Pause preview';
   el('connect').disabled = acting; el('manual').disabled = el('ai').disabled = !state.device;
-  screen.style.cursor = manual && live && !acting ? 'crosshair' : 'default';
 }
 function consume(data) {
   const previousError = state.error, previousLive = state.live;
@@ -113,7 +112,6 @@ screen.addEventListener('pointerup', event => {
   const end = point(event); if (!end) return;
   const duration = Math.round(performance.now() - current.at);
   const distance = Math.hypot(current.start.x - end.x, current.start.y - end.y);
-  const rect = el('stage').getBoundingClientRect(); el('cursor').style.left = `${event.clientX - rect.left}px`; el('cursor').style.top = `${event.clientY - rect.top}px`; el('cursor').hidden = false; setTimeout(() => { el('cursor').hidden = true; }, 500);
   void input(distance > 0.02 ? { action: 'swipe', from: current.start, to: end, duration: Math.max(100, Math.min(1500, duration)) } : { action: duration > 500 ? 'longpress' : 'tap', point: end, duration: Math.max(500, Math.min(2000, duration)) });
 });
 screen.addEventListener('pointercancel', () => { gesture = null; });
