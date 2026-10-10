@@ -12,7 +12,7 @@ const controller = new Controller();
 const uri = resourceUri;
 const html = () => readFile(new URL('../assets/panel.html', import.meta.url), 'utf8');
 const point = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).strict();
-const actionShape = { action: z.enum(['tap', 'longpress', 'swipe', 'text', 'home', 'recent', 'launch']), point: point.optional(), from: point.optional(), to: point.optional(), duration: z.number().int().min(100).max(2000).optional(), text: z.string().min(1).max(4000).optional(), bundleId: z.string().max(200).optional(), session: z.string().max(100).optional(), frameSeq: z.number().int().nonnegative().optional() };
+const actionShape = { action: z.enum(['tap', 'longpress', 'swipe', 'text', 'key', 'home', 'recent', 'launch']), point: point.optional(), from: point.optional(), to: point.optional(), duration: z.number().int().min(100).max(2000).optional(), text: z.string().min(1).max(4000).optional(), key: z.string().max(80).optional(), bundleId: z.string().max(200).optional(), session: z.string().max(100).optional(), frameSeq: z.number().int().nonnegative().optional() };
 const actionSchema = z.object(actionShape).strict();
 const uiMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false }, 'openai/ui': { availableDisplayModes: ['fullscreen'], preferredDisplayMode: 'fullscreen' } };
 function result(data) {

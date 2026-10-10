@@ -166,3 +166,15 @@ test('late info results and duplicate connections cannot replace the cancelled t
   assert.equal(f.c.state().error, null);
   assert.equal(f.c.state().connecting, false);
 });
+
+test('keyboard keys use literal arguments and obey fresh-frame and ownership guards', async t => {
+  const f = fixture(t); await f.c.connect('test'); f.c.poll(); f.frame();
+  const auth = { session: f.c.session, frameSeq: f.c.seq };
+  await f.c.action({ action: 'key', key: 'backspace', ...auth });
+  assert.deepEqual(f.calls.at(-1), ['io', 'keys', '--device', 'test', '--', 'backspace']);
+  await f.c.action({ action: 'key', key: 'cmd+shift+z', ...auth });
+  assert.deepEqual(f.calls.at(-1), ['io', 'keys', '--device', 'test', '--', 'cmd+shift+z']);
+  await assert.rejects(f.c.action({ action: 'key', key: '--device=other', ...auth }), /Unsupported keyboard/);
+  f.advance(2600); await assert.rejects(f.c.action({ action: 'key', key: 'enter', ...auth }), /stale/);
+  f.c.setMode('ai'); await assert.rejects(f.c.action({ action: 'key', key: 'enter', ...auth }), /Control belongs/);
+});

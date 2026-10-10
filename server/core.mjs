@@ -161,6 +161,10 @@ export class Controller {
         case 'longpress': command = ['io', 'longpress', ...target, point(args.point), '--duration', String(Math.min(2000, Math.max(500, args.duration || 500)))]; break;
         case 'swipe': command = ['io', 'swipe', ...target, `${point(args.from)},${point(args.to)}`, '--duration', String(Math.min(1500, Math.max(100, args.duration || 300)))]; break;
         case 'text': if (typeof args.text !== 'string' || !args.text.length || args.text.length > 4000) throw new Error('Text must contain 1–4000 characters.'); command = ['io', 'text', ...target, '--', args.text]; break;
+        case 'key': {
+          if (!/^(?:(?:cmd|ctrl|alt|shift)\+){0,4}(?:backspace|delete|enter|tab|escape|left|right|up|down|a|z)$/.test(args.key || '')) throw new Error('Unsupported keyboard key');
+          command = ['io', 'keys', ...target, '--', args.key]; break;
+        }
         case 'home': {
           if (this.device.platform === 'ios' && this.device.type !== 'simulator') { const size = this.viewport(); const x = Math.round(size.width / 2); command = ['io', 'swipe', ...target, `${x},${size.height - 2},${x},${Math.round(size.height * 0.22)}`, '--duration', '200']; }
           else command = ['io', 'button', ...target, 'HOME'];

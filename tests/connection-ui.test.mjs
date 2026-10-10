@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { Controller } from '../server/core.mjs';
 import { inputError } from '../ui/controls.mjs';
+import { bindKeyboard } from '../ui/keyboard.mjs';
 
 const turn = () => new Promise(resolve => setImmediate(resolve));
 async function panel(t, run) {
@@ -16,7 +17,7 @@ async function panel(t, run) {
   const context = vm.createContext({
     document: { hidden: true, getElementById: el, addEventListener() {} },
     window: { addEventListener() {} }, location: { protocol: 'http:', hostname: '127.0.0.1', hash: '#test' },
-    Option: class {}, inputError, imagePoint() {}, version: 'test', setTimeout, clearTimeout,
+    Option: class {}, inputError, bindKeyboard, imagePoint() {}, version: 'test', setTimeout, clearTimeout,
     fetch: async (url, { body }) => {
       const { name, arguments: args } = JSON.parse(body);
       try {
@@ -85,4 +86,22 @@ test('Disconnect terminates the selected iOS runner and clears the panel connect
   assert.equal(c.connectionDevice, null);
   assert.equal(el('message').textContent, 'Automation stopped');
   assert.equal(el('disconnect').disabled, true);
+});
+
+// Hiding the inspector must only change presentation, never stop a session.
+test('inspector toggles without disconnecting or changing control', async t => {
+  const calls = [];
+  const { el } = await panel(t, async args => {
+    calls.push(args);
+    return args[0] === 'devices' ? { devices: [] } : {};
+  });
+  el('inspector').hidden = true;
+  const before = calls.length;
+  el('inspector-toggle').onclick();
+  assert.equal(el('inspector').hidden, false);
+  assert.equal(el('inspector-toggle').title, 'Hide controls');
+  el('inspector-toggle').onclick();
+  assert.equal(el('inspector').hidden, true);
+  assert.equal(el('inspector-toggle').title, 'Show controls');
+  assert.equal(calls.length, before);
 });

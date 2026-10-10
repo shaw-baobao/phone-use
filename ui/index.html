@@ -1,16 +1,20 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phone Use</title><style>/*__STYLE__*/</style></head>
 <body><main>
-  <header><div><strong>Phone Use</strong><span class="subtitle">Your phone, within reach.</span></div><span id="status" role="status">Disconnected</span></header>
-  <section class="connection"><label for="devices">Device</label><select id="devices"><option value="">Choose a device</option></select><button id="connect">Connect</button><button id="refresh" title="Refresh device list">↻</button></section>
-  <section class="workspace"><div class="phone-view"><div id="stage"><img id="screen" alt="Live device screen. Drag to swipe; hold to long-press." draggable="false" hidden tabindex="0"><p id="empty">Connect a device to see its screen.</p><span id="cursor" hidden></span></div>
+  <header class="toolbar">
+    <div class="device-picker"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><path d="M10 5h4M11 19h2"/></svg><div><label for="devices">Phone Use</label><select id="devices"><option value="">Choose a device</option></select></div><button id="refresh" class="icon-button" aria-label="Refresh devices" title="Refresh device list">↻</button></div>
+    <div class="toolbar-actions"><button id="connect" class="primary">Connect</button><span id="status" role="status">Disconnected</span>
     <nav class="device-controls" aria-label="Device controls">
-      <button id="home" aria-label="Home" title="Return to Home screen" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 10h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 17h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4z"/></svg><span>Home</span></button>
-      <button id="capture" aria-label="Screenshot" title="Capture and save screenshot" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 9.5 3h5L16 5h4v15H4V5h4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Screenshot</span></button>
-      <button id="recent" aria-label="Recent apps" title="Open recent apps / app switcher" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 3h10v10M17 1l3 2-3 2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Recent apps</span></button>
-    </nav></div>
-  <aside><div class="control"><span class="label">Control</span><div class="segmented"><button id="manual" aria-pressed="true">You</button><button id="ai" aria-pressed="false">AI</button></div><p id="hint">Click, drag or hold on the live screen.</p></div>
-    <button id="pause" disabled>Pause preview</button>
-    <label for="text">Type into focused field</label><textarea id="text" rows="3" placeholder="Text to send…" maxlength="4000" disabled></textarea><button id="send" disabled>Send text</button>
-    <div class="bottom"><button id="disconnect" disabled>Disconnect</button><button id="stop" disabled>Stop automation</button><small>Both buttons disconnect and stop automation on the selected iPhone.</small></div>
-  </aside></section><footer><span id="message" role="status">Powered by MobileCLI</span><span id="dimensions"></span></footer>
+      <button id="home" aria-label="Home" title="Return to Home screen" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 10h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4zM3 17h4v4H3zm7 0h4v4h-4zm7 0h4v4h-4z"/></svg></button>
+      <button id="capture" aria-label="Screenshot" title="Capture and save screenshot" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5 9.5 3h5L16 5h4v15H4V5h4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      <button id="recent" aria-label="Recent apps" title="Open recent apps / app switcher" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 3h10v10M17 1l3 2-3 2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+    </nav>
+    <div class="segmented" aria-label="Control owner"><button id="manual" aria-pressed="true">You</button><button id="ai" aria-pressed="false">AI</button></div>
+    <button id="inspector-toggle" class="icon-button" aria-label="Show controls" aria-expanded="false" aria-controls="inspector" title="Show controls"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16M18 8h0M18 12h0"/></svg></button></div>
+  </header>
+  <section class="workspace"><div class="phone-view"><div id="stage"><img id="screen" alt="Live device screen. Drag to swipe; hold to long-press." draggable="false" hidden tabindex="0"><div class="empty-state"><svg viewBox="0 0 64 80" aria-hidden="true"><rect x="14" y="3" width="36" height="74" rx="9"/><path d="M27 9h10M28 70h8"/></svg><h1>Your phone, within reach.</h1><p id="empty">Connect a device to see its screen.</p></div><textarea id="keyboard" class="keyboard-capture" aria-label="Phone keyboard" tabindex="-1" autocomplete="off" autocapitalize="off" spellcheck="false" disabled></textarea><span id="cursor" hidden></span></div><p id="hint">Click, drag or hold on the live screen.</p></div>
+  <aside id="inspector" hidden><div class="inspector-heading"><h2>Controls</h2><span>Phone Use</span></div>
+    <details class="inspector-section text-input"><summary>Paste long text</summary><label for="text">Send to the focused field on your phone.</label><textarea id="text" rows="5" placeholder="Type something…" maxlength="4000" disabled></textarea><button id="send" class="primary" disabled>Send text</button></details>
+    <section class="inspector-section"><h3>Connection</h3><button id="pause" disabled>Pause preview</button><button id="disconnect" disabled>Disconnect</button><p>Disconnect also ends automation on your iPhone.</p></section>
+    <details class="advanced"><summary>Recovery</summary><p>If a connection is stuck, stop automation before reconnecting.</p><button id="stop" disabled>Stop automation</button></details>
+  </aside></section><footer><span id="message" role="status">Ready to connect</span><span id="dimensions"></span></footer>
 </main><script type="module">/*__SCRIPT__*/</script></body></html>

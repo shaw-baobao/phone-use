@@ -29011,6 +29011,11 @@ var Controller = class {
           if (typeof args.text !== "string" || !args.text.length || args.text.length > 4e3) throw new Error("Text must contain 1\u20134000 characters.");
           command = ["io", "text", ...target, "--", args.text];
           break;
+        case "key": {
+          if (!/^(?:(?:cmd|ctrl|alt|shift)\+){0,4}(?:backspace|delete|enter|tab|escape|left|right|up|down|a|z)$/.test(args.key || "")) throw new Error("Unsupported keyboard key");
+          command = ["io", "keys", ...target, "--", args.key];
+          break;
+        }
         case "home": {
           if (this.device.platform === "ios" && this.device.type !== "simulator") {
             const size = this.viewport();
@@ -29101,7 +29106,7 @@ var Controller = class {
 // package.json
 var package_default = {
   name: "phone-use",
-  version: "0.1.2",
+  version: "0.1.3",
   description: "Interactive mobile screen and shared human/AI control in Codex, powered by MobileCLI",
   type: "module",
   private: true,
@@ -29137,7 +29142,7 @@ var controller = new Controller();
 var uri = resourceUri;
 var html = () => readFile(new URL("../assets/panel.html", import.meta.url), "utf8");
 var point = external_exports.object({ x: external_exports.number().min(0).max(1), y: external_exports.number().min(0).max(1) }).strict();
-var actionShape = { action: external_exports.enum(["tap", "longpress", "swipe", "text", "home", "recent", "launch"]), point: point.optional(), from: point.optional(), to: point.optional(), duration: external_exports.number().int().min(100).max(2e3).optional(), text: external_exports.string().min(1).max(4e3).optional(), bundleId: external_exports.string().max(200).optional(), session: external_exports.string().max(100).optional(), frameSeq: external_exports.number().int().nonnegative().optional() };
+var actionShape = { action: external_exports.enum(["tap", "longpress", "swipe", "text", "key", "home", "recent", "launch"]), point: point.optional(), from: point.optional(), to: point.optional(), duration: external_exports.number().int().min(100).max(2e3).optional(), text: external_exports.string().min(1).max(4e3).optional(), key: external_exports.string().max(80).optional(), bundleId: external_exports.string().max(200).optional(), session: external_exports.string().max(100).optional(), frameSeq: external_exports.number().int().nonnegative().optional() };
 var actionSchema = external_exports.object(actionShape).strict();
 var uiMeta = { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: false }, "openai/ui": { availableDisplayModes: ["fullscreen"], preferredDisplayMode: "fullscreen" } };
 function result(data) {

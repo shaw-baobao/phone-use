@@ -9,7 +9,7 @@ An open-source Codex MCP App for viewing and directly controlling a connected ph
 ## What it does
 
 - Live MJPEG screen preview inside a Codex panel, with no simulated notch or phone bezel.
-- Click to tap, drag to swipe, hold to long press. A bottom control bar provides **Home / Screenshot / Recent apps**, with explicit text input in the side panel.
+- Click to tap, drag to swipe, hold to long press. A compact toolbar provides **Home / Screenshot / Recent apps**. Click a phone input field, then type with your Mac keyboard (including committed IME text and paste), or click the phone’s onscreen keyboard. **Paste long text** is collapsed in the inspector.
 - iOS real-device Home uses a fast, long bottom-edge swipe through MobileCLI (simulators use the native Home button) and checks that SpringBoard is in the foreground; Android uses the Home hardware key. Home and Recent apps remain usable during video loss; coordinate gestures still require a fresh displayed frame. An already visible Home screen may not change when Home is pressed again. Screenshot captures a fresh full-resolution PNG through MobileCLI and requests a host download (or a browser download in local preview).
 - Recent apps uses Android's `APP_SWITCH` key or a short, slow iOS swipe from the bottom edge; iOS acceptance should be checked on the target device.
 - Explicit **You / AI** control ownership, with one shared command queue. Switching ownership cancels queued actions.
@@ -136,7 +136,9 @@ The repository includes self-contained generated `assets/panel.html` and `dist/s
 
 ## Limitations
 
-Device lock, trust, signing, or agent failure requires user intervention. This release has no audio, multi-touch, pinch gesture, hardware keyboard passthrough, remote access, or device-agent installation wizard. AI observation uses MobileCLI's UI tree plus a cached fresh frame; a paused preview blocks observation. “Stop automation” currently terminates iOS's selected runner and reports whether a runner was actually stopped; it does not uninstall the agent or stop MobileCLI's shared daemon.
+Device lock, trust, signing, or agent failure requires user intervention. Direct keyboard input supports text, Backspace, Delete, Enter, Tab, arrows, Escape, select-all and undo. Only committed IME text is sent. Changing ownership, pausing, losing keyboard focus or changing sessions clears unsent keyboard input; failures are never retried automatically. Host shortcuts and copy/cut remain local; editing shortcuts depend on the target app.
+
+This release has no audio, multi-touch, pinch gesture, full hardware keyboard passthrough, remote access, or device-agent installation wizard. AI observation uses MobileCLI's UI tree plus a cached fresh frame; a paused preview blocks observation. “Stop automation” currently terminates iOS's selected runner and reports whether a runner was actually stopped; it does not uninstall the agent or stop MobileCLI's shared daemon.
 
 MIT license for Phone Use. Third-party packages retain their own licenses; see [bundled notices](assets/THIRD_PARTY_NOTICES.txt). The design uses the MCP Apps SDK and MobileCLI; it is an independent project and does not fork iPhone-use code.
 

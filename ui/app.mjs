@@ -1,6 +1,7 @@
 import { App } from '@modelcontextprotocol/ext-apps';
 import { imagePoint } from './geometry.mjs';
 import { inputError } from './controls.mjs';
+import { bindKeyboard } from './keyboard.mjs';
 import { version } from '../shared/version.mjs';
 const el = id => document.getElementById(id);
 const screen = el('screen');
@@ -18,12 +19,34 @@ async function call(name, args = {}) {
   return response.structuredContent || JSON.parse(response.content.find(b => b.type === 'text').text);
 }
 function message(text) { el('message').textContent = text; }
+el('inspector-toggle').onclick = () => {
+  const hidden = !el('inspector').hidden;
+  el('inspector').hidden = hidden;
+  el('inspector-toggle').setAttribute('aria-expanded', String(!hidden));
+  el('inspector-toggle').setAttribute('aria-label', hidden ? 'Show controls' : 'Hide controls');
+  el('inspector-toggle').title = hidden ? 'Show controls' : 'Hide controls';
+};
+const keyboard = bindKeyboard(el('keyboard'), {
+  context: () => state.device && state.mode === 'manual' && state.live && !state.paused && !disposed && !document.hidden
+    ? { session: state.session, frameSeq: seq, platform: state.device.platform, ready: !acting && !state.busy } : null,
+  send: async args => {
+    operations++; acting = true; sync();
+    try { await call('phone_input', args); message('Keyboard input sent'); }
+    finally { acting = --operations > 0; sync(); clearTimeout(timer); void poll(); }
+  },
+  onError: message,
+});
+screen.addEventListener('focus', () => keyboard.focus());
 function sync() {
+  keyboard.update();
   const manual = state.mode === 'manual', live = state.live && !state.paused;
   el('status').textContent = state.connecting ? 'Connecting' : state.error ? 'Connection failed' : state.paused ? 'Paused' : live ? 'Live' : state.device ? 'Connecting' : 'Disconnected';
   el('status').dataset.live = String(live);
+  el('stage').dataset.screen = String(!screen.hidden);
+  if (screen.hidden && state.connecting) el('empty').textContent = 'Connecting to your phone…';
+  if (!state.device) el('dimensions').textContent = '';
   el('manual').setAttribute('aria-pressed', String(manual)); el('ai').setAttribute('aria-pressed', String(!manual));
-  el('hint').textContent = manual ? 'Click, drag or hold on the live screen.' : 'AI has control. Choose You to take over.';
+  el('hint').textContent = manual ? 'Click to control. Type with your Mac keyboard.' : 'AI has control. Choose You to take over.';
   for (const id of ['send', 'text']) el(id).disabled = !manual || !live || acting || state.busy;
   for (const id of ['home', 'recent']) el(id).disabled = Boolean(inputError(state, id, acting));
   el('capture').disabled = !state.device || state.paused || acting || state.busy;
@@ -52,7 +75,7 @@ function consume(data) {
 async function devices() {
   const data = await call('phone_devices'); const select = el('devices');
   const selected = select.value; select.replaceChildren(new Option('Choose a device', ''));
-  for (const device of data.devices) if (device.state === 'online') select.add(new Option(`${device.name} · ${device.platform} ${device.type}`, device.id));
+  for (const device of data.devices) if (device.state === 'online') select.add(new Option(`${device.name} · ${device.platform === 'ios' ? 'iPhone' : device.platform}`, device.id));
   select.value = selected || state.device?.id || '';
 }
 async function poll() {
@@ -81,6 +104,7 @@ function point(event) { return imagePoint(event.clientX, event.clientY, screen.g
 screen.addEventListener('pointerdown', event => {
   if (event.button !== 0 || state.mode !== 'manual' || !state.live || acting || state.busy || state.paused) return;
   const start = point(event); if (!start) return;
+  keyboard.focus();
   screen.setPointerCapture(event.pointerId); gesture = { start, at: performance.now(), session: state.session, id: event.pointerId }; event.preventDefault();
 });
 screen.addEventListener('pointerup', event => {
@@ -131,15 +155,15 @@ for (const id of ['disconnect', 'stop']) el(id).onclick = () => {
     message(result.automationStopped ? 'Automation stopped' : 'Disconnected; no iOS runner was stopped');
   }, true).finally(() => { stopping = false; sync(); });
 };
-document.addEventListener('visibilitychange', () => { clearTimeout(timer); if (!document.hidden) void poll(); });
-window.addEventListener('pagehide', () => { clearTimeout(timer); gesture = null; });
+document.addEventListener('visibilitychange', () => { keyboard.update(); clearTimeout(timer); if (!document.hidden) void poll(); });
+window.addEventListener('pagehide', () => { clearTimeout(timer); gesture = null; keyboard.reset(); });
 window.addEventListener('pageshow', () => { void poll(); });
 async function start() {
   try {
     if (!local) {
       app = new App({ name: 'Phone Use', version }, { availableDisplayModes: ['fullscreen'] }, { autoResize: false });
       app.ontoolresult = event => { if (event.structuredContent) { consume(event.structuredContent); void poll(); } };
-      app.onteardown = async () => { disposed = true; clearTimeout(timer); };
+      app.onteardown = async () => { disposed = true; keyboard.reset(); clearTimeout(timer); };
       await app.connect();
       if (app.getHostContext()?.availableDisplayModes?.includes('fullscreen')) await app.requestDisplayMode({ mode: 'fullscreen' });
     }
